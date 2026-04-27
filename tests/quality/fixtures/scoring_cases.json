@@ -1,0 +1,103 @@
+{
+  "description": "Golden scoring cases. Each case represents a realistic item; `expected_top` lists the case ids that MUST appear in the top-5 by composite score when scored at fixture.now.",
+  "now": "2026-04-06T12:00:00+00:00",
+  "expected_top": [
+    "hn-gpt6-release",
+    "polymarket-gpt6",
+    "hf-paper-moe-hot",
+    "anthropic-new-model",
+    "reddit-llama-release"
+  ],
+  "cases": [
+    {
+      "id": "hn-gpt6-release",
+      "title": "OpenAI releases GPT-6 with 10M token context window",
+      "summary": "Major release from OpenAI featuring 10M token context and agent capabilities.",
+      "source_slug": "hackernews",
+      "points": 1200,
+      "comment_count": 340,
+      "published_hours_ago": 4
+    },
+    {
+      "id": "hf-paper-moe-hot",
+      "title": "Sparse Mixture-of-Experts Scaling Laws for Efficient LLM Training",
+      "summary": "New MoE training technique reducing compute by 40% on LLM pretraining.",
+      "source_slug": "hf-papers",
+      "points": 220,
+      "comment_count": 18,
+      "published_hours_ago": 12
+    },
+    {
+      "id": "arxiv-llm-alignment",
+      "title": "Constitutional AI: Alignment via RLHF and Self-Critique for LLMs",
+      "summary": "Paper proposes new alignment approach using self-critique loops with large language models.",
+      "source_slug": "arxiv-csai",
+      "points": null,
+      "comment_count": null,
+      "published_hours_ago": 8
+    },
+    {
+      "id": "anthropic-new-model",
+      "title": "Announcing Claude Opus 5 — frontier reasoning",
+      "summary": "Anthropic releases Claude Opus 5 with improved coding and agentic tool use.",
+      "source_slug": "anthropic-blog",
+      "points": null,
+      "comment_count": null,
+      "published_hours_ago": 3
+    },
+    {
+      "id": "reddit-llama-release",
+      "title": "Llama 4 weights dropped on Hugging Face, 400B params",
+      "summary": "Top comment: This is a huge deal for open LLM research.",
+      "source_slug": "reddit-localllama",
+      "points": 3200,
+      "comment_count": 520,
+      "published_hours_ago": 6
+    },
+    {
+      "id": "reddit-off-topic",
+      "title": "My new mechanical keyboard review",
+      "summary": "Not really about AI but showed up in the feed.",
+      "source_slug": "reddit-chatgpt",
+      "points": 50,
+      "comment_count": 5,
+      "published_hours_ago": 2
+    },
+    {
+      "id": "old-arxiv-paper",
+      "title": "Scaling LLMs to trillion-parameter regimes",
+      "summary": "A highly cited but older paper about LLM scaling.",
+      "source_slug": "arxiv-csai",
+      "points": null,
+      "comment_count": null,
+      "published_hours_ago": 240
+    },
+    {
+      "id": "github-repo-noise",
+      "title": "someuser/some-random-repo: a utility library",
+      "summary": "Description mentions LLM once but is not especially relevant.",
+      "source_slug": "github-ai",
+      "points": 12,
+      "comment_count": 0,
+      "published_hours_ago": 5
+    },
+    {
+      "id": "old-reddit-post",
+      "title": "A viral LLM discussion from last week",
+      "summary": "High engagement but stale.",
+      "source_slug": "reddit-ml",
+      "points": 5000,
+      "comment_count": 900,
+      "published_hours_ago": 180
+    },
+    {
+      "id": "polymarket-gpt6",
+      "title": "🎲 [32% Yes] Will GPT-6 be released by June 30, 2026?",
+      "summary": "Market on GPT-6 release timeline.",
+      "source_slug": "polymarket-ai",
+      "points": 83168,
+      "comment_count": 810,
+      "published_hours_ago": 10
+    }
+  ]
+}

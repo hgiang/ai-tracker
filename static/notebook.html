@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paper to Notebook — AI Tracker</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    body { background: var(--bg-primary); min-height: 100vh; }
+
+    .page-shell {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 5rem;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2.5rem;
+    }
+    .site-logo {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent-text);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+    .site-logo:hover { text-decoration: underline; }
+    .type-pill {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      background: var(--success-light);
+      color: var(--success);
+    }
+
+    /* ── Card ── */
+    .notebook-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 1.75rem 2rem 1.25rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .card-header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.3rem;
+      line-height: 1.35;
+    }
+    .card-header p {
+      font-size: 0.82rem;
+      color: var(--text-tertiary);
+      margin: 0;
+    }
+
+    /* ── Steps ── */
+    .steps {
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--border-light);
+      transition: color var(--transition);
+    }
+    .step:last-child { border-bottom: none; }
+
+    .step-icon-wrap {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 0.85rem;
+      transition: all var(--transition);
+    }
+
+    /* pending */
+    .step-pending .step-icon-wrap {
+      background: var(--bg-tertiary);
+      border: 2px solid var(--border);
+      color: var(--text-tertiary);
+    }
+    .step-pending .step-label { color: var(--text-tertiary); }
+    .step-pending .step-hint { color: var(--text-tertiary); opacity: 0.6; }
+
+    /* active */
+    .step-active .step-icon-wrap {
+      background: var(--accent-light);
+      border: 2px solid var(--accent);
+    }
+    .step-active .step-label { color: var(--text-primary); font-weight: 600; }
+    .step-active .step-hint { color: var(--accent-text); }
+
+    /* done */
+    .step-done .step-icon-wrap {
+      background: var(--success-light);
+      border: 2px solid var(--success);
+      color: var(--success);
+    }
+    .step-done .step-label { color: var(--text-primary); }
+    .step-done .step-hint { color: var(--text-tertiary); }
+
+    .step-text { flex: 1; }
+    .step-label { font-size: 0.9rem; display: block; }
+    .step-hint { font-size: 0.75rem; margin-top: 0.1rem; display: block; }
+
+    /* spinner in active icon */
+    .spin-ring {
+      width: 14px; height: 14px;
+      border: 2px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Actions ── */
+    .card-footer {
+      padding: 1.25rem 2rem 1.75rem;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .card-footer.hidden { display: none; }
+
+    /* ── Error ── */
+    .error-state {
+      margin: 1rem 2rem 1.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: var(--danger-light);
+      border: 1px solid #fca5a5;
+      border-radius: var(--radius-md);
+      color: var(--danger);
+      font-size: 0.875rem;
+    }
+    .error-state.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="page-header">
+      <a class="site-logo" href="/">AI Tracker</a>
+      <span class="type-pill">Notebook</span>
+    </header>
+
+    <div class="notebook-card">
+      <div class="card-header">
+        <h1 id="page-title">Generating Notebook…</h1>
+        <p id="subtitle">Powered by Kimi K2.5 · This may take 2–4 minutes</p>
+      </div>
+
+      <div class="steps" id="steps">
+        <div class="step step-pending" id="step-fetching_pdf">
+          <div class="step-icon-wrap" id="icon-fetching_pdf">↓</div>
+          <div class="step-text">
+            <span class="step-label">Fetch PDF</span>
+            <span class="step-hint">Downloading paper from arXiv</span>
+          </div>
+        </div>
+        <div class="step step-pending" id="step-analysing">
+          <div class="step-icon-wrap" id="icon-analysing">🔬</div>
+          <div class="step-text">
+            <span class="step-label">Analyse</span>
+            <span class="step-hint">Extracting structure, algorithms, architecture</span>
+          </div>
+        </div>
+        <div class="step step-pending" id="step-designing">
+          <div class="step-icon-wrap" id="icon-designing">📐</div>
+          <div class="step-text">
+            <span class="step-label">Design</span>
+            <span class="step-hint">Planning notebook sections and config</span>
+          </div>
+        </div>
+        <div class="step step-pending" id="step-generating">
+          <div class="step-icon-wrap" id="icon-generating">⚡</div>
+          <div class="step-text">
+            <span class="step-label">Generate</span>
+            <span class="step-hint">Writing runnable code cells</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="error-area" class="error-state hidden">⚠ <span id="error-msg"></span></div>
+
+      <div id="card-footer" class="card-footer hidden">
+        <button id="btn-download" class="btn btn-primary">↓ Download .ipynb</button>
+        <button id="btn-colab" class="btn">Open in Colab</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const theme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+
+    const params = new URLSearchParams(location.search);
+    const itemId = params.get('item_id');
+    const STEPS = ['fetching_pdf', 'analysing', 'designing', 'generating'];
+    const STEP_ICONS = { fetching_pdf: '↓', analysing: '🔬', designing: '📐', generating: '⚡' };
+    let notebookBlob = null;
+    let notebookTitle = 'notebook';
+
+    function setStep(id, state) {
+      const el = document.getElementById(`step-${id}`);
+      const icon = document.getElementById(`icon-${id}`);
+      if (!el) return;
+      el.className = `step step-${state}`;
+      if (state === 'active') {
+        icon.innerHTML = '<div class="spin-ring"></div>';
+      } else if (state === 'done') {
+        icon.textContent = '✓';
+      } else {
+        icon.textContent = STEP_ICONS[id] || '·';
+      }
+    }
+
+    function activateStep(id) {
+      const idx = STEPS.indexOf(id);
+      STEPS.slice(0, idx).forEach(s => setStep(s, 'done'));
+      setStep(id, 'active');
+    }
+
+    function showError(msg) {
+      document.getElementById('error-msg').textContent = msg;
+      document.getElementById('error-area').classList.remove('hidden');
+    }
+
+    if (!itemId) {
+      showError('Missing item_id parameter.');
+    } else {
+      fetch(`/api/items/${itemId}/notebook`, { method: 'POST' })
+        .then((resp) => {
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          function pump() {
+            return reader.read().then(({ done, value }) => {
+              if (done) return;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop();
+              lines.forEach(line => {
+                if (!line.startsWith('data: ')) return;
+                handleEvent(JSON.parse(line.slice(6)));
+              });
+              return pump();
+            });
+          }
+          return pump();
+        })
+        .catch(err => showError(err.message));
+    }
+
+    function handleEvent(event) {
+      if (event.status === 'error') { showError(event.message); return; }
+      if (event.status === 'done') {
+        STEPS.forEach(s => setStep(s, 'done'));
+        notebookTitle = (event.title || 'notebook').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const bytes = atob(event.notebook_b64);
+        const arr = new Uint8Array(bytes.length);
+        for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+        notebookBlob = new Blob([arr], { type: 'application/json' });
+        document.getElementById('page-title').textContent = event.title || 'Notebook Ready';
+        document.getElementById('subtitle').textContent = 'Your notebook is ready to download.';
+        document.getElementById('card-footer').classList.remove('hidden');
+        return;
+      }
+      activateStep(event.status);
+    }
+
+    document.getElementById('btn-download')?.addEventListener('click', () => {
+      if (!notebookBlob) return;
+      const url = URL.createObjectURL(notebookBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${notebookTitle}.ipynb`;
+      a.click(); URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('btn-colab')?.addEventListener('click', () => {
+      if (!notebookBlob) return;
+      alert('Download the .ipynb file first, then upload it at colab.research.google.com via File → Upload notebook.');
+      document.getElementById('btn-download').click();
+    });
+  </script>
+</body>
+</html>

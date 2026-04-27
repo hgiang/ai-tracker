@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paper Summary — AI Tracker</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    body { background: var(--bg-primary); min-height: 100vh; }
+
+    .page-shell {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 5rem;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2.5rem;
+    }
+    .site-logo {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent-text);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+    .site-logo:hover { text-decoration: underline; }
+    .type-pill {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      background: var(--accent-light);
+      color: var(--accent-text);
+    }
+
+    /* ── Card ── */
+    .summary-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+    .card-top {
+      padding: 2rem 2rem 1.5rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-light);
+      border-radius: 20px;
+      padding: 0.2rem 0.65rem;
+      margin-bottom: 1rem;
+    }
+    .ai-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+    .paper-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .card-body {
+      padding: 1.75rem 2rem;
+    }
+
+    /* ── Loading ── */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+      padding: 3rem 2rem;
+      color: var(--text-tertiary);
+      font-size: 0.9rem;
+    }
+    .loading-dots {
+      display: flex;
+      gap: 6px;
+    }
+    .loading-dots span {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+      40% { transform: translateY(-8px); opacity: 1; }
+    }
+
+    /* ── Summary body ── */
+    .summary-body {
+      font-size: 1rem;
+      line-height: 1.85;
+      color: var(--text-secondary);
+    }
+    .summary-body p { margin: 0 0 1.1rem; }
+    .summary-body p:last-child { margin-bottom: 0; }
+
+    /* ── Error ── */
+    .error-state {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 1.25rem 1.5rem;
+      background: var(--danger-light);
+      border: 1px solid #fca5a5;
+      border-radius: var(--radius-md);
+      color: var(--danger);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="page-header">
+      <a class="site-logo" href="/">AI Tracker</a>
+      <span class="type-pill">Paper Summary</span>
+    </header>
+
+    <div class="summary-card">
+      <div id="card-top" class="card-top" style="display:none">
+        <div class="ai-badge"><span class="ai-dot"></span>Kimi K2.5</div>
+        <h1 class="paper-title" id="paper-title"></h1>
+      </div>
+      <div class="card-body" id="card-body">
+        <div class="loading-state" id="loading">
+          <div class="loading-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span>Generating summary with Kimi K2.5…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { renderMarkdown } from '/static/js/components.js';
+
+    const theme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+
+    const params = new URLSearchParams(location.search);
+    const itemId = params.get('item_id');
+    const loading = document.getElementById('loading');
+    const cardBody = document.getElementById('card-body');
+    const cardTop = document.getElementById('card-top');
+    const paperTitle = document.getElementById('paper-title');
+
+    function escapeHtml(str) {
+      const el = document.createElement('div');
+      el.textContent = str;
+      return el.innerHTML;
+    }
+
+    if (!itemId) {
+      loading.outerHTML = `<div class="error-state">⚠ Missing item_id parameter.</div>`;
+    } else {
+      fetch(`/api/items/${itemId}/summary`)
+        .then(async (resp) => {
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${resp.status}`);
+          }
+          return resp.json();
+        })
+        .then(({ title, summary }) => {
+          document.title = `${title} — AI Tracker`;
+          paperTitle.textContent = title;
+          cardTop.style.display = '';
+          cardBody.innerHTML = `<div class="summary-body">${renderMarkdown(summary)}</div>`;
+        })
+        .catch((err) => {
+          cardBody.innerHTML = `<div class="error-state">⚠ ${escapeHtml(err.message)}</div>`;
+        });
+    }
+  </script>
+</body>
+</html>
