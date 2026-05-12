@@ -40,14 +40,74 @@
       color: var(--success);
     }
 
-    /* ── Card ── */
+    /* ── Provider form card ── */
+    .provider-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 1.75rem 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .provider-card h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 1.25rem;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 480px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .form-group label {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+    }
+    .form-group select,
+    .form-group input {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .form-group select:focus,
+    .form-group input:focus {
+      border-color: var(--accent);
+    }
+    .provider-hint {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      margin-bottom: 1rem;
+    }
+    .provider-hint a { color: var(--accent-text); }
+
+    /* ── Notebook card ── */
     .notebook-card {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-md);
       overflow: hidden;
+      display: none;
     }
+    .notebook-card.visible { display: block; }
     .card-header {
       padding: 1.75rem 2rem 1.25rem;
       border-bottom: 1px solid var(--border-light);
@@ -91,7 +151,6 @@
       transition: all var(--transition);
     }
 
-    /* pending */
     .step-pending .step-icon-wrap {
       background: var(--bg-tertiary);
       border: 2px solid var(--border);
@@ -100,7 +159,6 @@
     .step-pending .step-label { color: var(--text-tertiary); }
     .step-pending .step-hint { color: var(--text-tertiary); opacity: 0.6; }
 
-    /* active */
     .step-active .step-icon-wrap {
       background: var(--accent-light);
       border: 2px solid var(--accent);
@@ -108,7 +166,6 @@
     .step-active .step-label { color: var(--text-primary); font-weight: 600; }
     .step-active .step-hint { color: var(--accent-text); }
 
-    /* done */
     .step-done .step-icon-wrap {
       background: var(--success-light);
       border: 2px solid var(--success);
@@ -121,7 +178,6 @@
     .step-label { font-size: 0.9rem; display: block; }
     .step-hint { font-size: 0.75rem; margin-top: 0.1rem; display: block; }
 
-    /* spinner in active icon */
     .spin-ring {
       width: 14px; height: 14px;
       border: 2px solid var(--accent);
@@ -164,10 +220,40 @@
       <span class="type-pill">Notebook</span>
     </header>
 
-    <div class="notebook-card">
+    <!-- Provider configuration form -->
+    <div class="provider-card" id="provider-card">
+      <h2>Configure AI Provider</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="provider-select">Provider</label>
+          <select id="provider-select">
+            <option value="openai">OpenAI (GPT-4o)</option>
+            <option value="anthropic">Anthropic (Claude Sonnet)</option>
+            <option value="gemini">Google Gemini (2.0 Flash)</option>
+            <option value="grok">Grok (Grok-3 Mini)</option>
+            <option value="kimi">Kimi (K2.6)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="api-key-input">API Key</label>
+          <input
+            type="password"
+            id="api-key-input"
+            placeholder="Enter your API key…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+      </div>
+      <p class="provider-hint" id="provider-hint"></p>
+      <button class="btn btn-primary" id="btn-generate">Generate Notebook</button>
+    </div>
+
+    <!-- Notebook progress card (hidden until generation starts) -->
+    <div class="notebook-card" id="notebook-card">
       <div class="card-header">
         <h1 id="page-title">Generating Notebook…</h1>
-        <p id="subtitle">Powered by Kimi K2.5 · This may take 2–4 minutes</p>
+        <p id="subtitle">This may take 2–4 minutes</p>
       </div>
 
       <div class="steps" id="steps">
@@ -214,15 +300,52 @@
     const theme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
 
-    const params = new URLSearchParams(location.search);
-    const itemId = params.get('item_id');
-    const STEPS = ['fetching_pdf', 'analysing', 'designing', 'generating'];
+    const PROVIDER_HINTS = {
+      openai:    'Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>',
+      anthropic: 'Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>',
+      gemini:    'Get your key at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a>',
+      grok:      'Get your key at <a href="https://console.x.ai" target="_blank">console.x.ai</a>',
+      kimi:      'Get your key at <a href="https://platform.moonshot.cn" target="_blank">platform.moonshot.cn</a>',
+    };
+    const PROVIDER_LABELS = {
+      openai: 'GPT-4o', anthropic: 'Claude Sonnet', gemini: 'Gemini 2.0 Flash',
+      grok: 'Grok-3 Mini', kimi: 'Kimi K2.6',
+    };
+
+    const params  = new URLSearchParams(location.search);
+    const itemId  = params.get('item_id');
+    const STEPS   = ['fetching_pdf', 'analysing', 'designing', 'generating'];
     const STEP_ICONS = { fetching_pdf: '↓', analysing: '🔬', designing: '📐', generating: '⚡' };
-    let notebookBlob = null;
+
+    let notebookBlob  = null;
     let notebookTitle = 'notebook';
 
+    const providerSelect = document.getElementById('provider-select');
+    const apiKeyInput    = document.getElementById('api-key-input');
+    const providerHint   = document.getElementById('provider-hint');
+    const btnGenerate    = document.getElementById('btn-generate');
+    const notebookCard   = document.getElementById('notebook-card');
+
+    // Restore last-used provider and key
+    const savedProvider = localStorage.getItem('ai_provider');
+    if (savedProvider) providerSelect.value = savedProvider;
+    function storageKey(p) { return `ai_key_${p}`; }
+    apiKeyInput.value = sessionStorage.getItem(storageKey(providerSelect.value)) || '';
+    updateHint();
+
+    providerSelect.addEventListener('change', () => {
+      localStorage.setItem('ai_provider', providerSelect.value);
+      apiKeyInput.value = sessionStorage.getItem(storageKey(providerSelect.value)) || '';
+      updateHint();
+    });
+
+    function updateHint() {
+      providerHint.innerHTML = PROVIDER_HINTS[providerSelect.value] || '';
+    }
+
+    // ── Step helpers ──────────────────────────────────────────────
     function setStep(id, state) {
-      const el = document.getElementById(`step-${id}`);
+      const el   = document.getElementById(`step-${id}`);
       const icon = document.getElementById(`icon-${id}`);
       if (!el) return;
       el.className = `step step-${state}`;
@@ -247,12 +370,45 @@
     }
 
     if (!itemId) {
+      notebookCard.classList.add('visible');
       showError('Missing item_id parameter.');
-    } else {
-      fetch(`/api/items/${itemId}/notebook`, { method: 'POST' })
+      btnGenerate.disabled = true;
+    }
+
+    // ── Generate ──────────────────────────────────────────────────
+    btnGenerate.addEventListener('click', () => {
+      const provider = providerSelect.value;
+      const apiKey   = apiKeyInput.value.trim();
+
+      if (!apiKey) {
+        apiKeyInput.focus();
+        return;
+      }
+
+      sessionStorage.setItem(storageKey(provider), apiKey);
+      localStorage.setItem('ai_provider', provider);
+
+      // Show progress card
+      notebookCard.classList.add('visible');
+      document.getElementById('subtitle').textContent =
+        `Powered by ${PROVIDER_LABELS[provider] || provider} · This may take 2–4 minutes`;
+      btnGenerate.disabled = true;
+      btnGenerate.textContent = 'Generating…';
+
+      // Reset step states
+      STEPS.forEach(s => setStep(s, 'pending'));
+      document.getElementById('error-area').classList.add('hidden');
+      document.getElementById('card-footer').classList.add('hidden');
+      notebookBlob = null;
+
+      fetch(`/api/items/${itemId}/notebook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, api_key: apiKey }),
+      })
         .then((resp) => {
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const reader = resp.body.getReader();
+          const reader  = resp.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
           function pump() {
@@ -270,21 +426,32 @@
           }
           return pump();
         })
-        .catch(err => showError(err.message));
-    }
+        .catch(err => {
+          showError(err.message);
+          btnGenerate.disabled = false;
+          btnGenerate.textContent = 'Retry';
+        });
+    });
 
     function handleEvent(event) {
-      if (event.status === 'error') { showError(event.message); return; }
+      if (event.status === 'error') {
+        showError(event.message);
+        btnGenerate.disabled = false;
+        btnGenerate.textContent = 'Retry';
+        return;
+      }
       if (event.status === 'done') {
         STEPS.forEach(s => setStep(s, 'done'));
         notebookTitle = (event.title || 'notebook').replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const bytes = atob(event.notebook_b64);
-        const arr = new Uint8Array(bytes.length);
+        const arr   = new Uint8Array(bytes.length);
         for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
         notebookBlob = new Blob([arr], { type: 'application/json' });
-        document.getElementById('page-title').textContent = event.title || 'Notebook Ready';
-        document.getElementById('subtitle').textContent = 'Your notebook is ready to download.';
+        document.getElementById('page-title').textContent  = event.title || 'Notebook Ready';
+        document.getElementById('subtitle').textContent    = 'Your notebook is ready to download.';
         document.getElementById('card-footer').classList.remove('hidden');
+        btnGenerate.disabled = false;
+        btnGenerate.textContent = 'Regenerate';
         return;
       }
       activateStep(event.status);

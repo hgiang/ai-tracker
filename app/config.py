@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     kimi_api_key: str = ""
     kimi_base_url: str = "https://api.moonshot.ai/v1"
-    kimi_model: str = "kimi-k2.5"
+    kimi_model: str = "kimi-k2.6"
 
     retention_days: int = 180
 

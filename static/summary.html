@@ -40,18 +40,80 @@
       color: var(--accent-text);
     }
 
-    /* ── Card ── */
+    /* ── Provider form card ── */
+    .provider-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 1.75rem 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .provider-card h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 1.25rem;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 520px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .form-group label {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+    }
+    .form-group select,
+    .form-group input {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .form-group select:focus,
+    .form-group input:focus {
+      border-color: var(--accent);
+    }
+    .provider-hint {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      margin-bottom: 1rem;
+    }
+    .provider-hint a { color: var(--accent-text); }
+
+    /* ── Summary card ── */
     .summary-card {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-md);
       overflow: hidden;
+      display: none;
     }
+    .summary-card.visible { display: block; }
     .card-top {
       padding: 2rem 2rem 1.5rem;
       border-bottom: 1px solid var(--border-light);
+      display: none;
     }
+    .card-top.visible { display: block; }
     .ai-badge {
       display: inline-flex;
       align-items: center;
@@ -143,9 +205,39 @@
       <span class="type-pill">Paper Summary</span>
     </header>
 
-    <div class="summary-card">
-      <div id="card-top" class="card-top" style="display:none">
-        <div class="ai-badge"><span class="ai-dot"></span>Kimi K2.5</div>
+    <!-- Provider configuration form -->
+    <div class="provider-card" id="provider-card">
+      <h2>Configure AI Provider</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="provider-select">Provider</label>
+          <select id="provider-select">
+            <option value="openai">OpenAI (GPT-4o)</option>
+            <option value="anthropic">Anthropic (Claude Sonnet)</option>
+            <option value="gemini">Google Gemini (2.0 Flash)</option>
+            <option value="grok">Grok (Grok-3 Mini)</option>
+            <option value="kimi">Kimi (K2.6)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="api-key-input">API Key</label>
+          <input
+            type="password"
+            id="api-key-input"
+            placeholder="Enter your API key…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+      </div>
+      <p class="provider-hint" id="provider-hint"></p>
+      <button class="btn btn-primary" id="btn-generate">Generate Summary</button>
+    </div>
+
+    <!-- Summary result card (hidden until generation starts) -->
+    <div class="summary-card" id="summary-card">
+      <div id="card-top" class="card-top">
+        <div class="ai-badge"><span class="ai-dot"></span><span id="provider-label">AI</span></div>
         <h1 class="paper-title" id="paper-title"></h1>
       </div>
       <div class="card-body" id="card-body">
@@ -153,7 +245,7 @@
           <div class="loading-dots">
             <span></span><span></span><span></span>
           </div>
-          <span>Generating summary with Kimi K2.5…</span>
+          <span id="loading-text">Generating summary…</span>
         </div>
       </div>
     </div>
@@ -165,12 +257,51 @@
     const theme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
 
+    const PROVIDER_HINTS = {
+      openai:    'Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>',
+      anthropic: 'Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>',
+      gemini:    'Get your key at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a>',
+      grok:      'Get your key at <a href="https://console.x.ai" target="_blank">console.x.ai</a>',
+      kimi:      'Get your key at <a href="https://platform.moonshot.cn" target="_blank">platform.moonshot.cn</a>',
+    };
+    const PROVIDER_LABELS = {
+      openai: 'GPT-4o', anthropic: 'Claude Sonnet', gemini: 'Gemini 2.0 Flash',
+      grok: 'Grok-3 Mini', kimi: 'Kimi K2.6',
+    };
+
     const params = new URLSearchParams(location.search);
     const itemId = params.get('item_id');
-    const loading = document.getElementById('loading');
-    const cardBody = document.getElementById('card-body');
-    const cardTop = document.getElementById('card-top');
-    const paperTitle = document.getElementById('paper-title');
+
+    const providerSelect = document.getElementById('provider-select');
+    const apiKeyInput    = document.getElementById('api-key-input');
+    const providerHint   = document.getElementById('provider-hint');
+    const btnGenerate    = document.getElementById('btn-generate');
+    const summaryCard    = document.getElementById('summary-card');
+    const cardTop        = document.getElementById('card-top');
+    const cardBody       = document.getElementById('card-body');
+    const paperTitle     = document.getElementById('paper-title');
+    const loading        = document.getElementById('loading');
+    const loadingText    = document.getElementById('loading-text');
+    const providerLabel  = document.getElementById('provider-label');
+
+    // Restore last-used provider from localStorage
+    const savedProvider = localStorage.getItem('ai_provider');
+    if (savedProvider) providerSelect.value = savedProvider;
+
+    // Restore API key for current provider from sessionStorage
+    function storageKey(p) { return `ai_key_${p}`; }
+    apiKeyInput.value = sessionStorage.getItem(storageKey(providerSelect.value)) || '';
+    updateHint();
+
+    providerSelect.addEventListener('change', () => {
+      localStorage.setItem('ai_provider', providerSelect.value);
+      apiKeyInput.value = sessionStorage.getItem(storageKey(providerSelect.value)) || '';
+      updateHint();
+    });
+
+    function updateHint() {
+      providerHint.innerHTML = PROVIDER_HINTS[providerSelect.value] || '';
+    }
 
     function escapeHtml(str) {
       const el = document.createElement('div');
@@ -179,9 +310,36 @@
     }
 
     if (!itemId) {
-      loading.outerHTML = `<div class="error-state">⚠ Missing item_id parameter.</div>`;
-    } else {
-      fetch(`/api/items/${itemId}/summary`)
+      btnGenerate.disabled = true;
+      summaryCard.classList.add('visible');
+      cardBody.innerHTML = `<div class="error-state">⚠ Missing item_id parameter.</div>`;
+    }
+
+    btnGenerate.addEventListener('click', () => {
+      const provider = providerSelect.value;
+      const apiKey   = apiKeyInput.value.trim();
+
+      if (!apiKey) {
+        apiKeyInput.focus();
+        return;
+      }
+
+      // Persist key for this session
+      sessionStorage.setItem(storageKey(provider), apiKey);
+      localStorage.setItem('ai_provider', provider);
+
+      // Show the summary card in loading state
+      summaryCard.classList.add('visible');
+      providerLabel.textContent = PROVIDER_LABELS[provider] || provider;
+      loadingText.textContent   = `Generating summary with ${PROVIDER_LABELS[provider] || provider}…`;
+      btnGenerate.disabled = true;
+      btnGenerate.textContent = 'Generating…';
+
+      fetch(`/api/items/${itemId}/summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, api_key: apiKey }),
+      })
         .then(async (resp) => {
           if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
@@ -192,13 +350,17 @@
         .then(({ title, summary }) => {
           document.title = `${title} — AI Tracker`;
           paperTitle.textContent = title;
-          cardTop.style.display = '';
+          cardTop.classList.add('visible');
           cardBody.innerHTML = `<div class="summary-body">${renderMarkdown(summary)}</div>`;
+          btnGenerate.disabled = false;
+          btnGenerate.textContent = 'Regenerate';
         })
         .catch((err) => {
           cardBody.innerHTML = `<div class="error-state">⚠ ${escapeHtml(err.message)}</div>`;
+          btnGenerate.disabled = false;
+          btnGenerate.textContent = 'Retry';
         });
-    }
+    });
   </script>
 </body>
 </html>

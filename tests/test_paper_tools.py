@@ -34,7 +34,10 @@ async def test_summary_returns_cached(paper_item):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as client:
-                resp = await client.get("/api/items/1/summary")
+                resp = await client.post(
+                    "/api/items/1/summary",
+                    json={"provider": "kimi", "api_key": "test-key"},
+                )
 
     assert resp.status_code == 200
     assert resp.json()["summary"] == "cached summary text"
@@ -58,6 +61,9 @@ async def test_summary_returns_404_for_non_paper():
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
-            resp = await client.get("/api/items/2/summary")
+            resp = await client.post(
+                "/api/items/2/summary",
+                json={"provider": "kimi", "api_key": "test-key"},
+            )
 
     assert resp.status_code == 404

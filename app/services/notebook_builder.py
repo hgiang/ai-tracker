@@ -1,4 +1,4 @@
-"""Three-stage Kimi pipeline to convert a research paper PDF into a Jupyter notebook.
+"""Three-stage LLM pipeline to convert a research paper PDF into a Jupyter notebook.
 
 Stage 1 — Analyse: extract structured paper metadata from raw text.
 Stage 2 — Design: plan the toy implementation structure.
@@ -8,13 +8,15 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import AsyncIterator
+from collections.abc import Callable, Coroutine
+from typing import Any, AsyncIterator
 
-import fitz  # pymupdf
 import nbformat
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
-from app.services.kimi import call_kimi
+from app.services.pdf_utils import extract_pdf_text, parse_json_response
+
+CallLLMFn = Callable[..., Coroutine[Any, Any, str]]
 
 SYSTEM_PROMPT = (
     "You are an expert research engineer and educator who faithfully implements "
@@ -120,55 +122,6 @@ Notebook design:
 """
 
 
-def _extract_text(pdf_bytes: bytes, max_chars: int = 40_000) -> str:
-    """Extract text from PDF bytes using pymupdf, capped at max_chars."""
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    parts: list[str] = []
-    total = 0
-    for page in doc:
-        text = page.get_text()
-        parts.append(text)
-        total += len(text)
-        if total >= max_chars:
-            break
-    doc.close()
-    return "".join(parts)[:max_chars]
-
-
-def _parse_json_response(text: str) -> dict:
-    """Extract the first complete JSON object from an LLM response string.
-
-    Handles markdown code fences and leading/trailing prose by walking the
-    character stream to find the first balanced {…} block.
-    """
-    import re
-    # Strip markdown code fences
-    text = re.sub(r"```(?:json)?\s*", "", text)
-    start = text.find("{")
-    if start == -1:
-        raise ValueError(f"No JSON object found in response: {text[:200]}")
-    depth = 0
-    in_string = False
-    escape_next = False
-    for i, ch in enumerate(text[start:], start):
-        if escape_next:
-            escape_next = False
-            continue
-        if ch == "\\" and in_string:
-            escape_next = True
-            continue
-        if ch == '"':
-            in_string = not in_string
-            continue
-        if in_string:
-            continue
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return json.loads(text[start : i + 1])
-    raise ValueError(f"No complete JSON object found in response: {text[:200]}")
 
 
 def _assemble_notebook(cells_data: list[dict]) -> str:
@@ -185,34 +138,34 @@ def _assemble_notebook(cells_data: list[dict]) -> str:
     return nbformat.writes(nb)
 
 
-async def build_notebook(pdf_bytes: bytes) -> AsyncIterator[dict]:
+async def build_notebook(pdf_bytes: bytes, call_llm_fn: CallLLMFn) -> AsyncIterator[dict]:
     """Three-stage pipeline. Yields status dicts; final yield contains notebook_b64."""
     yield {"status": "analysing"}
-    paper_text = _extract_text(pdf_bytes)
-    analysis_raw = await call_kimi(
+    paper_text = extract_pdf_text(pdf_bytes)
+    analysis_raw = await call_llm_fn(
         system=SYSTEM_PROMPT,
         user=ANALYSIS_PROMPT.replace("{paper_text}", paper_text),
         max_tokens=8192,
     )
-    analysis = _parse_json_response(analysis_raw)
+    analysis = parse_json_response(analysis_raw)
 
     yield {"status": "designing"}
-    design_raw = await call_kimi(
+    design_raw = await call_llm_fn(
         system=SYSTEM_PROMPT,
         user=DESIGN_PROMPT.replace("{analysis_json}", json.dumps(analysis, indent=2)),
         max_tokens=8192,
     )
-    design = _parse_json_response(design_raw)
+    design = parse_json_response(design_raw)
 
     yield {"status": "generating"}
-    cells_raw = await call_kimi(
+    cells_raw = await call_llm_fn(
         system=SYSTEM_PROMPT,
         user=GENERATE_PROMPT.replace("{analysis_json}", json.dumps(analysis, indent=2)).replace(
             "{design_json}", json.dumps(design, indent=2)
         ),
         max_tokens=32768,
     )
-    cells_data = _parse_json_response(cells_raw)
+    cells_data = parse_json_response(cells_raw)
     notebook_json = _assemble_notebook(cells_data.get("cells", []))
     notebook_b64 = base64.b64encode(notebook_json.encode()).decode()
 

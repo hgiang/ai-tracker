@@ -10,3 +10,7 @@ dist/
 .pytest_cache/
 htmlcov/
 .coverage
+.DS_Store
+.agents/
+.claude/
+skills-lock.json
