@@ -58,6 +58,13 @@ export const api = {
     return request("/items/clear", { method: "POST" });
   },
 
+  setFeedback(id, feedback) {
+    return request(`/items/${id}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ feedback }),
+    });
+  },
+
   createSource(data) {
     return request("/sources", { method: "POST", body: JSON.stringify(data) });
   },

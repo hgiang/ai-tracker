@@ -107,7 +107,7 @@ export function renderItemCard(item, sourcesMap = {}) {
     </div>` : "";
 
   return `
-    <div class="item-card">
+    <div class="item-card" data-item-id="${item.id}">
       <div class="item-score ${cls}">${score}%</div>
       <div class="item-content">
         <div style="display:flex;align-items:flex-start;gap:0.5rem">
@@ -127,11 +127,40 @@ export function renderItemCard(item, sourcesMap = {}) {
           ${item.points != null ? `<span class="item-meta-divider"></span><span>${item.points} pts</span>` : ""}
           ${item.comment_count != null ? `<span class="item-meta-divider"></span><span>${item.comment_count} comments</span>` : ""}
         </div>
-        <div class="item-tags">
-          <span class="tag tag-source">${escapeHtml(sourceName)}</span>
-          <span class="tag ${typeTagClass(item.content_type)}">${item.content_type}</span>
+        <div class="item-footer">
+          <div class="item-tags">
+            <span class="tag tag-source">${escapeHtml(sourceName)}</span>
+            <span class="tag ${typeTagClass(item.content_type)}">${item.content_type}</span>
+          </div>
+          ${renderFeedbackButtons(item)}
         </div>
       </div>
+    </div>
+  `;
+}
+
+function renderFeedbackButtons(item) {
+  const verdict = item.user_feedback || "";
+  const upActive = verdict === "up" ? "is-active" : "";
+  const downActive = verdict === "down" ? "is-active" : "";
+  return `
+    <div class="feedback-buttons" role="group" aria-label="Rate this item">
+      <button class="btn-feedback ${upActive}" data-feedback="up"
+              aria-pressed="${verdict === "up"}" title="Useful — show me more like this">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 10v12"/>
+          <path d="M15 5.88L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7V10l4.59-7.59A1 1 0 0 1 13 3a2 2 0 0 1 2 2v.88z"/>
+        </svg>
+      </button>
+      <button class="btn-feedback ${downActive}" data-feedback="down"
+              aria-pressed="${verdict === "down"}" title="Not useful — hide more like this">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17 14V2"/>
+          <path d="M9 18.12L10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H17v12l-4.59 7.59A1 1 0 0 1 11 21a2 2 0 0 1-2-2v-.88z"/>
+        </svg>
+      </button>
     </div>
   `;
 }

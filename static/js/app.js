@@ -197,6 +197,48 @@ function bindFeedEvents() {
   }
 }
 
+function attachFeedbackHandlers(container) {
+  container.querySelectorAll(".btn-feedback").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const card = btn.closest("[data-item-id]");
+      if (!card) return;
+      const itemId = card.dataset.itemId;
+      const value = btn.dataset.feedback;
+      const wasActive = btn.classList.contains("is-active");
+      const nextValue = wasActive ? null : value;
+
+      // Optimistic UI: toggle classes immediately
+      card.querySelectorAll(".btn-feedback").forEach((b) => {
+        b.classList.remove("is-active");
+        b.setAttribute("aria-pressed", "false");
+        b.disabled = true;
+      });
+      if (nextValue) {
+        btn.classList.add("is-active");
+        btn.setAttribute("aria-pressed", "true");
+      }
+
+      try {
+        await api.setFeedback(itemId, nextValue);
+      } catch (err) {
+        // Revert
+        card.querySelectorAll(".btn-feedback").forEach((b) => {
+          b.classList.remove("is-active");
+          b.setAttribute("aria-pressed", "false");
+        });
+        if (wasActive) {
+          btn.classList.add("is-active");
+          btn.setAttribute("aria-pressed", "true");
+        }
+        showToast(`Couldn't save feedback: ${err.message}`, "error");
+      } finally {
+        card.querySelectorAll(".btn-feedback").forEach((b) => (b.disabled = false));
+      }
+    });
+  });
+}
+
 async function loadFeedItems() {
   const $items = document.getElementById("feed-items");
   const $pagination = document.getElementById("feed-pagination");
@@ -220,6 +262,8 @@ async function loadFeedItems() {
     $items.innerHTML = data.items
       .map((item) => renderItemCard(item, state.sourcesMap))
       .join("");
+
+    attachFeedbackHandlers($items);
 
     $pagination.innerHTML = renderPagination(data.page, data.limit, data.total);
 
