@@ -14,3 +14,4 @@ htmlcov/
 .agents/
 .claude/
 skills-lock.json
+*.mhtml
