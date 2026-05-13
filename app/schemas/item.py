@@ -21,8 +21,16 @@ class ItemOut(BaseModel):
     points: int | None
     comment_count: int | None
     duration: str | None
+    user_feedback: str | None = None
+    feedback_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class FeedbackIn(BaseModel):
+    """Request body for setting feedback. `feedback=None` clears the verdict."""
+
+    feedback: str | None
 
 
 class ItemList(BaseModel):

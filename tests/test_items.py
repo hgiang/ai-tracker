@@ -60,3 +60,55 @@ async def test_get_item(client, seeded_db):
 async def test_get_item_not_found(client, seeded_db):
     resp = await client.get("/api/items/999")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_set_feedback_up(client, seeded_db):
+    resp = await client.post("/api/items/1/feedback", json={"feedback": "up"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["user_feedback"] == "up"
+    assert data["feedback_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_set_feedback_down(client, seeded_db):
+    resp = await client.post("/api/items/2/feedback", json={"feedback": "down"})
+    assert resp.status_code == 200
+    assert resp.json()["user_feedback"] == "down"
+
+
+@pytest.mark.asyncio
+async def test_clear_feedback(client, seeded_db):
+    await client.post("/api/items/1/feedback", json={"feedback": "up"})
+    resp = await client.post("/api/items/1/feedback", json={"feedback": None})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["user_feedback"] is None
+    assert data["feedback_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_invalid_feedback_value(client, seeded_db):
+    resp = await client.post("/api/items/1/feedback", json={"feedback": "meh"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_feedback_item_not_found(client, seeded_db):
+    resp = await client.post("/api/items/999/feedback", json={"feedback": "up"})
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_filter_items_by_feedback(client, seeded_db):
+    await client.post("/api/items/1/feedback", json={"feedback": "up"})
+    await client.post("/api/items/2/feedback", json={"feedback": "down"})
+
+    up_resp = await client.get("/api/items?feedback=up")
+    assert up_resp.json()["total"] == 1
+    assert up_resp.json()["items"][0]["id"] == 1
+
+    down_resp = await client.get("/api/items?feedback=down")
+    assert down_resp.json()["total"] == 1
+    assert down_resp.json()["items"][0]["id"] == 2

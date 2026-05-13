@@ -1,4 +1,5 @@
 import enum
+from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -15,6 +16,11 @@ class ContentType(str, enum.Enum):
     ARTICLE = "article"
     PODCAST = "podcast"
     VIDEO = "video"
+
+
+class Feedback(str, enum.Enum):
+    UP = "up"
+    DOWN = "down"
 
 
 class Item(Base, TimestampMixin):
@@ -45,5 +51,7 @@ class Item(Base, TimestampMixin):
     comment_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     duration: Mapped[str | None] = mapped_column(String(20), nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_feedback: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    feedback_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     source: Mapped["Source"] = relationship(back_populates="items")  # noqa: F821
